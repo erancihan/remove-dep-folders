@@ -45,7 +45,7 @@ func ShowFolderSelection(choices []FolderEntry) []string {
 				Options(items...).
 				Title(("Select folders to delete")).
 				Value(&selection).
-				Height(10),
+				Height(15),
 		),
 	)
 
