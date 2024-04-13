@@ -11,22 +11,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var isDryRun bool = false
+var (
+	isDryRun bool = false
+	checkAll bool = false
+)
 
 func getFolders(searchpath string) ([]folderstable.FolderEntry, error) {
 	entries := []folderstable.FolderEntry{}
 
 	err := filepath.WalkDir(searchpath, func(path string, d fs.DirEntry, err error) error {
-		// check if node_modules directory
+		// check if directory
 		if !d.IsDir() {
 			return nil
 		}
 
 		// ignore dot directories, except for the current directory
-		if d.Name() != "." && len(d.Name()) > 1 && d.Name()[0] == '.' {
+		if !checkAll && d.Name() != "." && len(d.Name()) > 1 && d.Name()[0] == '.' {
 			return filepath.SkipDir
 		}
 
+		// check if node_modules directory
 		if d.Name() == "node_modules" {
 			size, err := utils.DirSizeB(path)
 			if err != nil {
@@ -36,6 +40,20 @@ func getFolders(searchpath string) ([]folderstable.FolderEntry, error) {
 			entries = append(entries, folderstable.FolderEntry{Path: path, Size: size})
 
 			// do not recurse into node_modules
+			return filepath.SkipDir
+		}
+
+		// check if python venv directory
+		// folder should contain pyvenv.cfg file to be considered a venv
+		if _, err := os.Stat(filepath.Join(path, "pyvenv.cfg")); err == nil {
+			size, err := utils.DirSizeB(path)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			entries = append(entries, folderstable.FolderEntry{Path: path, Size: size})
+
+			// do not recurse into venv
 			return filepath.SkipDir
 		}
 
@@ -117,6 +135,7 @@ var cmd = &cobra.Command{
 
 func init() {
 	cmd.PersistentFlags().BoolVar(&isDryRun, "dry-run", false, "Dry run the program")
+	cmd.PersistentFlags().BoolVarP(&checkAll, "all", "a", false, "Check all folders")
 }
 
 func main() {
